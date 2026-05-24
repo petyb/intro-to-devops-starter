@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  checks: write
+  issues: read
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
