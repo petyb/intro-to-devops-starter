@@ -3,3 +3,6 @@ uvicorn==0.32.1
 pydantic==2.10.3
 sqlalchemy==2.0.36
 pymysql==1.1.1
+# PyMySQL needs cryptography to negotiate MySQL 8's default caching_sha2_password
+# auth. Without it the driver raises RuntimeError on every connection.
+cryptography==44.0.0
