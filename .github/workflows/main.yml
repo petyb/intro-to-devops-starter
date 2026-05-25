@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write   # OIDC token for AWS role assumption in the deploy job
 
 concurrency:
   group: main
@@ -146,3 +147,71 @@ jobs:
           format: spdx-json
           output-file: sbom.spdx.json
           upload-artifact: true
+
+  deploy:
+    name: deploy to ECS
+    runs-on: ubuntu-latest
+    needs: build-test-push
+    env:
+      AWS_REGION: eu-central-1
+      AWS_ROLE_ARN: arn:aws:iam::176938214523:role/fruitapi-dev-gh-deploy
+      ECS_CLUSTER: fruitapi-dev-cluster
+      ECS_SERVICE: fruitapi-dev-svc
+      TASK_FAMILY: fruitapi-dev-task
+      CONTAINER_NAME: fruitapi
+      NEW_IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+    steps:
+      - name: assume AWS role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: build new task definition with the just-pushed image
+        id: taskdef
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$TASK_FAMILY" \
+            --query 'taskDefinition' > current.json
+
+          # strip read-only fields ECS rejects on register, and swap the image
+          jq --arg image "$NEW_IMAGE" --arg cname "$CONTAINER_NAME" '
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                .compatibilities, .registeredAt, .registeredBy)
+            | .containerDefinitions |= map(if .name == $cname then .image = $image else . end)
+          ' current.json > new.json
+
+      - name: register new task definition revision
+        id: register
+        run: |
+          new_arn=$(aws ecs register-task-definition \
+            --cli-input-json file://new.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "new_arn=$new_arn" >> "$GITHUB_OUTPUT"
+          echo "Registered $new_arn"
+
+      - name: update ECS service & wait for steady state
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "${{ steps.register.outputs.new_arn }}" \
+            > /dev/null
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+
+      - name: smoke test the rolled-out service
+        env:
+          ALB_URL: http://fruitapi-dev-alb-2001998178.eu-central-1.elb.amazonaws.com
+        run: |
+          for i in $(seq 1 30); do
+            body=$(curl -fsS "$ALB_URL/health" 2>/dev/null || true)
+            if [ "$body" = '{"status":"ok"}' ]; then
+              echo "post-deploy health OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "post-deploy health check failed" >&2
+          exit 1
