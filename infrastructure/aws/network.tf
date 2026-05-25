@@ -44,16 +44,16 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "service" {
-  name        = "${local.name_prefix}-svc"
-  description = "Inbound traffic to FruitAPI tasks"
+  name_prefix = "${local.name_prefix}-svc-"
+  description = "Inbound traffic to FruitAPI tasks (from ALB only)"
   vpc_id      = aws_vpc.this.id
 
   ingress {
-    description = "FruitAPI HTTP"
-    from_port   = var.container_port
-    to_port     = var.container_port
-    protocol    = "tcp"
-    cidr_blocks = var.ingress_cidrs
+    description     = "FruitAPI HTTP from ALB"
+    from_port       = var.container_port
+    to_port         = var.container_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {
@@ -65,4 +65,8 @@ resource "aws_security_group" "service" {
   }
 
   tags = { Name = "${local.name_prefix}-svc-sg" }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }

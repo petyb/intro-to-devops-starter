@@ -33,3 +33,13 @@ output "rds_endpoint" {
 output "db_secret_arn" {
   value = aws_secretsmanager_secret.db.arn
 }
+
+output "alb_dns_name" {
+  description = "Public DNS name of the FruitAPI load balancer."
+  value       = aws_lb.fruitapi.dns_name
+}
+
+output "alb_url" {
+  description = "HTTP URL of the FruitAPI service."
+  value       = "http://${aws_lb.fruitapi.dns_name}"
+}

@@ -43,7 +43,7 @@ variable "task_memory" {
 variable "desired_count" {
   description = "Number of ECS service replicas."
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "vpc_cidr" {
@@ -64,8 +64,3 @@ variable "log_retention_days" {
   default     = 14
 }
 
-variable "ingress_cidrs" {
-  description = "CIDRs allowed to reach the container port directly. Tightens to ALB-only in lecture 5."
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
