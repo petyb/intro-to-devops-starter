@@ -1,0 +1,4 @@
+region        = "eu-central-1"
+environment   = "dev"
+image         = "ghcr.io/petyb/intro-to-devops-starter:latest"
+desired_count = 1

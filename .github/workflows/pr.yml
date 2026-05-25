@@ -41,3 +41,28 @@ jobs:
           files: unit-results.xml
           check_name: unit-tests
           comment_mode: always
+
+  terraform:
+    name: terraform fmt + validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.4"
+
+      - name: terraform fmt (check)
+        run: terraform fmt -recursive -check infrastructure/
+
+      - name: validate aws stack
+        working-directory: infrastructure/aws
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: validate local stack
+        working-directory: infrastructure/local
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
