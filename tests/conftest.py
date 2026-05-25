@@ -2,12 +2,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.store import get_store
+from app.store import InMemoryStore, get_store
 
 
 @pytest.fixture
-def client() -> TestClient:
-    get_store().reset()
+def store() -> InMemoryStore:
+    s = InMemoryStore()
+    app.dependency_overrides[get_store] = lambda: s
+    yield s
+    app.dependency_overrides.pop(get_store, None)
+
+
+@pytest.fixture
+def client(store: InMemoryStore) -> TestClient:
     return TestClient(app)
 
 

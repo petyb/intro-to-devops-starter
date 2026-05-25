@@ -25,3 +25,11 @@ output "log_group_name" {
 output "service_security_group_id" {
   value = aws_security_group.service.id
 }
+
+output "rds_endpoint" {
+  value = aws_db_instance.fruitapi.address
+}
+
+output "db_secret_arn" {
+  value = aws_secretsmanager_secret.db.arn
+}

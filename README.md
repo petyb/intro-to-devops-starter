@@ -20,25 +20,43 @@ Spec: [PROJECT-REQUIREMENTS.md](./PROJECT-REQUIREMENTS.md).
 
 ## Local development
 
+In-memory store (no DB), great for quick iteration:
+
 ```bash
 python3.13 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/uvicorn app.main:app --reload
 ```
 
+Against a real MySQL via docker-compose (mirrors the AWS shape):
+
+```bash
+docker compose up --build
+curl http://127.0.0.1:8000/health
+```
+
 Tests:
 
 ```bash
-.venv/bin/pytest tests/test_main.py             # unit
+.venv/bin/pytest tests/test_main.py             # unit, in-memory store
 FRUITAPI_BASE_URL=http://127.0.0.1:8000 \
-  .venv/bin/pytest tests/test_integration.py    # integration (needs running server)
+  .venv/bin/pytest tests/test_integration.py    # integration (server must be up)
 ```
+
+## Store backends
+
+`STORE_BACKEND` env var (default `memory`):
+
+| Value    | Behavior |
+|----------|----------|
+| `memory` | Thread-safe in-memory store; data lost on restart. Used by unit tests. |
+| `mysql`  | SQLAlchemy + PyMySQL against the DB defined by `DB_HOST/PORT/NAME/USER/PASSWORD`. Used in docker-compose and on AWS. |
 
 ## Docker
 
 ```bash
 docker build -t fruitapi:dev .
-docker run --rm -p 8000:8000 fruitapi:dev
+docker run --rm -p 8000:8000 fruitapi:dev   # in-memory mode
 ```
 
 Multi-stage build on `python:3.13-slim-bookworm`, non-root user, healthcheck.
