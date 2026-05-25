@@ -90,13 +90,15 @@ resource "aws_ecs_service" "fruitapi" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
-  # Force a rolling redeploy on apply so tasks pick up new network_configuration
-  # (e.g. a replaced security group) without us editing the task definition.
-  force_new_deployment = true
-
-  # Wait for the new deployment to stabilise before Terraform considers the
-  # apply done — required so a subsequent destroy of the old SG is safe.
+  # Wait for steady state so apply behaviour is predictable.
   wait_for_steady_state = true
+
+  # CI/CD owns image rollouts: it registers new task definition revisions
+  # and points the service at them. Terraform should ignore those changes
+  # so it doesn't try to revert to its in-state ARN.
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 
   depends_on = [aws_lb_listener.http]
 }
