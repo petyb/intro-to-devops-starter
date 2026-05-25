@@ -81,6 +81,22 @@ resource "aws_ecs_service" "fruitapi" {
     assign_public_ip = true
   }
 
+  load_balancer {
+    target_group_arn = aws_lb_target_group.fruitapi.arn
+    container_name   = "fruitapi"
+    container_port   = var.container_port
+  }
+
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+
+  # Force a rolling redeploy on apply so tasks pick up new network_configuration
+  # (e.g. a replaced security group) without us editing the task definition.
+  force_new_deployment = true
+
+  # Wait for the new deployment to stabilise before Terraform considers the
+  # apply done — required so a subsequent destroy of the old SG is safe.
+  wait_for_steady_state = true
+
+  depends_on = [aws_lb_listener.http]
 }
