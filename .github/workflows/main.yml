@@ -114,6 +114,12 @@ jobs:
           FRUITAPI_BASE_URL: http://127.0.0.1:8000
         run: pytest tests/test_integration.py -v
 
+      - name: dump container logs on failure
+        if: failure()
+        run: |
+          echo "::group::fruitapi"; docker logs fruitapi 2>&1 || true; echo "::endgroup::"
+          echo "::group::mysql";    docker logs mysql    2>&1 || true; echo "::endgroup::"
+
       - name: stop containers
         if: always()
         run: |
