@@ -39,6 +39,16 @@ resource "aws_ecs_task_definition" "fruitapi" {
           protocol      = "tcp"
         }
       ]
+      environment = [
+        { name = "STORE_BACKEND", value = "mysql" }
+      ]
+      secrets = [
+        { name = "DB_HOST", valueFrom = "${aws_secretsmanager_secret.db.arn}:DB_HOST::" },
+        { name = "DB_PORT", valueFrom = "${aws_secretsmanager_secret.db.arn}:DB_PORT::" },
+        { name = "DB_NAME", valueFrom = "${aws_secretsmanager_secret.db.arn}:DB_NAME::" },
+        { name = "DB_USER", valueFrom = "${aws_secretsmanager_secret.db.arn}:DB_USER::" },
+        { name = "DB_PASSWORD", valueFrom = "${aws_secretsmanager_secret.db.arn}:DB_PASSWORD::" },
+      ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -52,7 +62,7 @@ resource "aws_ecs_task_definition" "fruitapi" {
         interval    = 30
         timeout     = 5
         retries     = 3
-        startPeriod = 10
+        startPeriod = 30
       }
     }
   ])
@@ -73,9 +83,4 @@ resource "aws_ecs_service" "fruitapi" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
-
-  # Allow CI/CD to update the image without Terraform thinking it drifted.
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
 }

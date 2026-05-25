@@ -22,6 +22,8 @@ build/
 *.tfvars
 !*.tfvars.example
 .terraform.lock.hcl.bak
+tfplan
+*.tfplan
 crash.log
 crash.*.log
 

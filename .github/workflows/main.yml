@@ -66,9 +66,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: start MySQL for integration tests
+        run: |
+          docker network create fruitnet
+          docker run -d --name mysql --network fruitnet \
+            -e MYSQL_ROOT_PASSWORD=rootpass \
+            -e MYSQL_DATABASE=fruitapi \
+            -e MYSQL_USER=fruitapi \
+            -e MYSQL_PASSWORD=fruitapi \
+            mysql:8.4
+          for i in $(seq 1 60); do
+            if docker exec mysql mysqladmin ping -h 127.0.0.1 -uroot -prootpass --silent 2>/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "MySQL never became ready" >&2
+          docker logs mysql
+          exit 1
+
       - name: run image
         run: |
-          docker run -d --name fruitapi -p 8000:8000 fruitapi:ci
+          docker run -d --name fruitapi --network fruitnet -p 8000:8000 \
+            -e STORE_BACKEND=mysql \
+            -e DB_HOST=mysql \
+            -e DB_PORT=3306 \
+            -e DB_NAME=fruitapi \
+            -e DB_USER=fruitapi \
+            -e DB_PASSWORD=fruitapi \
+            fruitapi:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8000/health >/dev/null; then exit 0; fi
             sleep 1
@@ -90,9 +114,12 @@ jobs:
           FRUITAPI_BASE_URL: http://127.0.0.1:8000
         run: pytest tests/test_integration.py -v
 
-      - name: stop container
+      - name: stop containers
         if: always()
-        run: docker rm -f fruitapi || true
+        run: |
+          docker rm -f fruitapi || true
+          docker rm -f mysql || true
+          docker network rm fruitnet || true
 
       - name: push image with versioned tags
         uses: docker/build-push-action@v6
